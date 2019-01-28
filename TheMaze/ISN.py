@@ -1,45 +1,54 @@
+# coding: utf-8
 from tkinter import *
-from random import randint
-import tkinter.font as tkFont
+import tkinter.font as tkfont
+import winsound
 
-a = randint(13, 14)
+fenetre = Tk()  # on définit la main fenêtre
 
-fenetre = Tk()
+font = tkfont.Font(family="Segoe UI", size=14)  # on crée une font
 
-font = tkFont.Font(family="Segoe UI", size=14)
+# winsound.PlaySound('alarm10.wav', winsound.SND_ALIAS | winsound.SND_ASYNC)  # on import le sound du jeu
 
-w, h = fenetre.winfo_screenwidth(), fenetre.winfo_screenheight()
 img = PhotoImage(file='themaze.png')  # on importe le skin du jeu
 img2 = PhotoImage(file='fin2.png')
+# lvl1check1 = PhotoImage(file='lvl1check1.png')
+
 
 can = Canvas(fenetre, height=700, width=800, background='black')
+
 can.create_image(0, 0, image=img, anchor='nw')  # on définit le canvas et on set les images pour faire le jeu
 can.create_image(0, 150, image=img2, anchor='nw')
 
 player = can.create_rectangle(213, 228, 237, 253, outline='blue', fill='blue')  # on crée le player
-clock = can.create_text(113, 558, fill='red', font=font)
+clock = can.create_text(113, 558, fill='red', font=font)  # on set la clock aussi
 
 baseCoords = (213, 228, 237, 253)
-PCoords = [213, 228, 237, 253]  # on définit les coordonnées de base pour plus tard
-print(PCoords)
+PCoords = [213, 228, 237, 253]  # on définit les coordonnées de base et du player pour plus tard
 
 lvl1 = ['d', 'd', 'r', 'u', 'u', 'r', 'r', 'r', 'r', 'r', 'd', 'l', 'd', 'l', 'u', 'l', 'd', 'd', 'd', 'd', 'l', 'l',
-        'l', 'd', 'd', 'r', 'u' ,'r', 'd', 'r', 'u', 'r', 'u', 'r', 'd', 'd', 'l']
+        'l', 'd', 'd', 'r', 'u', 'r', 'd', 'r', 'u', 'r', 'u', 'r', 'd', 'd', 'l']
+wrlvl1 = [0,5,27]
+
+lvl2 = ['d', 'r', 'd', 'd', 'r', 'u', 'r', 'd', 'r', 'u', 'u', 'r', 'r', 'd', 'r', 'd', 'd', 'd', 'd', 'd', 'l', 'u',
+        'l', 'd', 'l']
+
+lvl3 = ['d', 'r', 'r', 'd', 'l', 'd', 'd', 'r', 'd', 'r', 'r', 'u', 'r', 'd', 'd', 'l', 'd']
+
 # les niveaux
 lvl0 = ['d', 'd', 'd', 'd', 'd', 'd', 'd', 'r', 'r', 'r', 'r']
 win = False
 path = []
 currentlvl = lvl1
-error = False
-
+error = False  # on définit des variables globales pour plus tard.
 minut = 0
 sec = 0
 ms = 000
-
+index = 0
 trash = []
+levelon = True
 
 
-def timer():
+def timer():  # on fait le timer.
     global minut
     global sec
     global ms
@@ -53,28 +62,32 @@ def timer():
             minut = minut + 1
             sec = 0
         if minut > 60:
-            minut = 0   
+            minut = 0
         output = str(minut) + ':' + str(sec) + '.' + str(ms)
         can.itemconfig(clock, text=output)
         ms = ms + 1
     else:
         ms, sec, minut = 0, 0, 0
     if win:
-        can.itemconfig(clock, fill ='green')
+        can.itemconfig(clock, fill='green')
+        if wrlvl1[1] >= sec:
+        	if wrlvl1[1] == sec and wrlvl1[2] <= ms:
+        		pass
+        	else:
+        		can.itemconfig(clock,fill = 'yellow')
         return [None]
     if error:
         return [None]
     fenetre.after(10, timer)
 
 
-def reset():
-    print("PANIC")
+def reset():  # on reset la taille du path, on relance le timer et on remet le personnage de façon normale
     path[:] = []
     can.itemconfig(player, outline='blue', fill='blue')
     timer()
 
 
-def check():  # on check par rapport au maze choisi
+def check():  # on check si le dernier move du joueur correspond au move demandé par le niveau
     global error
     global win
     if len(path) == 0:
@@ -97,8 +110,17 @@ def check():  # on check par rapport au maze choisi
         print("GG")
 
 
+def blink():
+    current = can.itemcget(player, "state")  # le perso clignote wouhou
+    after = 'hidden' if current == 'normal' else 'normal'
+    can.itemconfig(player, state=after)
+    if not levelon:
+        return [None]
+    fenetre.after(250, blink)
 
-def movedown(event):  # les 4 fonctions de mouvements qui sont quasiment les mêmes
+
+def movedown(event):  # les 4 fonctions de mouvements qui sont quasiment les mêmes.
+    global trash  # juste on bouge les coordonnées du player de 50 sur X ou Y
     PCoords[1] = PCoords[1] + 50
     PCoords[3] = PCoords[3] + 50
     path.append('d')
@@ -109,11 +131,11 @@ def movedown(event):  # les 4 fonctions de mouvements qui sont quasiment les mê
         PCoords[3] = PCoords[3] - 50
         del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
-    print(path, PCoords, baseCoords)
     check()
 
 
 def moveup(event):
+    global trash
     PCoords[1] = PCoords[1] - 50
     PCoords[3] = PCoords[3] - 50
     path.append('u')
@@ -124,11 +146,11 @@ def moveup(event):
         PCoords[3] = PCoords[3] + 50
         del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
-    print(path, PCoords, baseCoords)
     check()
 
 
 def moveleft(event):
+    global trash
     PCoords[0] = PCoords[0] - 50
     PCoords[2] = PCoords[2] - 50
     path.append('l')
@@ -139,11 +161,11 @@ def moveleft(event):
         PCoords[2] = PCoords[2] + 50
         del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
-    print(path, PCoords, baseCoords)
     check()
 
 
 def moveright(event):
+    global trash
     PCoords[0] = PCoords[0] + 50
     PCoords[2] = PCoords[2] + 50
     path.append('r')
@@ -154,20 +176,18 @@ def moveright(event):
         PCoords[2] = PCoords[2] - 50
         del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
-    print(path, PCoords, baseCoords)
     check()
 
 
-def blink():
-    current = can.itemcget(player, "state")  # le perso clignote wouhou
-    after = 'hidden' if current == 'normal' else 'normal'
-    can.itemconfig(player, state=after)
-    fenetre.after(250, blink)
+def clear(event):
+    global trash
+    trash = event
+    for child in fenetre.winfo_children():
+        child.destroy()
 
-
-print(path)
 
 can.pack()
+fenetre.bind('r', clear)
 fenetre.bind('<Up>', moveup)
 fenetre.bind('<Down>', movedown)
 fenetre.bind('<Left>', moveleft)
