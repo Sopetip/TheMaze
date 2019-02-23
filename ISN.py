@@ -2,7 +2,7 @@
 from tkinter import *
 import tkinter.font as tkfont
 
-# import winsound
+import winsound
 
 root = Tk()  # on définit la main fenêtre
 
@@ -10,7 +10,7 @@ root.wm_title("The Maze")  # makes the title top left
 
 font = tkfont.Font(family="Segoe UI", size=14)  # on crée une font
 
-# winsound.PlaySound('resources/audio/alarm10.wav', winsound.SND_ALIAS | winsound.SND_ASYNC)  # on import le sound du jeu
+winsound.PlaySound('resources/audio/SlamTheTargets.wav', winsound.SND_LOOP | winsound.SND_ASYNC)  # on import le sound du jeu
 
 img = PhotoImage(file='resources/main/themaze.png')  # on importe le skin du jeu
 img2 = PhotoImage(file='resources/main/fin2.png')
@@ -55,7 +55,6 @@ def timer():  # on fait le timer.
     global minut
     global sec
     global ms
-    global trash
     if len(path) >= 1:
 
         if ms > 100:
@@ -87,6 +86,7 @@ def timer():  # on fait le timer.
 def reset():  # on reset la taille du path, on relance le timer et on remet le personnage de façon normale
     path[:] = []  # selectionner tous les objets de la liste et les remplacer par la liste suivante: rien
     can.itemconfig(player, outline='blue', fill='blue')
+    can.itemconfig(clock, fill='red')
     timer()
 
 
@@ -117,6 +117,7 @@ def check():  # on check si le dernier move du joueur correspond au move demand�
     if len(path) == len(currentlvl) and not error:
         win = True
         print("GG")
+    print(path)
 
 
 def blink():
@@ -125,22 +126,26 @@ def blink():
     can.itemconfig(player, state=after)
     if not levelon:
         return [None]
-    root.after(250, blink)
+    root.after(125, blink)
 
 
 def movedown(event):  # les 4 fonctions de mouvements qui sont quasiment les mêmes.
     global trash  # juste on bouge les coordonnées du player de 50 sur X ou Y
     PCoords[1] = PCoords[1] + 50
     PCoords[3] = PCoords[3] + 50
-    path.append('d')
+    path.append('d') #ensuite on append à la fin de la liste 'path' le dernier mouvement exécuté.
     trash = event
 
-    if PCoords[1] > baseCoords[1] + 400 or PCoords[3] > baseCoords[3] + 399:
+    if PCoords[1] > baseCoords[1] + 400 or PCoords[3] > baseCoords[3] + 399: #on vérifie que le joueur n'a pas atteint les limites
         PCoords[1] = PCoords[1] - 50
         PCoords[3] = PCoords[3] - 50
         del path[-1]
+    if len(path) > 1:
+        if path[-2] == ('u'):
+            del path[-1]
+            del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
-    check()
+    check() #on check que le dernier n'est pas mauvais.
 
 
 def moveup(event):
@@ -154,6 +159,10 @@ def moveup(event):
         PCoords[1] = PCoords[1] + 50
         PCoords[3] = PCoords[3] + 50
         del path[-1]
+    if len(path) > 1:
+        if path[-2] == ('d'):
+            del path[-1]
+            del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
     check()
 
@@ -169,6 +178,10 @@ def moveleft(event):
         PCoords[0] = PCoords[0] + 50
         PCoords[2] = PCoords[2] + 50
         del path[-1]
+    if len(path) > 1:
+        if path[-2] == ('r'):
+            del path[-1]
+            del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
     check()
 
@@ -184,6 +197,10 @@ def moveright(event):
         PCoords[0] = PCoords[0] - 50
         PCoords[2] = PCoords[2] - 50
         del path[-1]
+    if len(path) > 1:
+        if path[-2] == ('l'):
+            del path[-1]
+            del path[-1]
     can.coords(player, PCoords[0], PCoords[1], PCoords[2], PCoords[3])
     check()
 
@@ -203,6 +220,6 @@ root.bind('<Left>', moveleft)
 root.bind('<Right>', moveright)
 root.focus_set()
 timer()
-# blink()
+blink()
 root.mainloop()
 print(wrlvl1)
