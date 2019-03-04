@@ -1,14 +1,15 @@
+# coding: utf-8
 import pygame
 
-pygame.init()
+pygame.init()  # on initialise le pygame
 
-Display = pygame.display.set_mode((800, 700))
-pygame.display.set_caption('The Maze')
-clock = pygame.time.Clock()
-crashed = False
-bgImg = pygame.image.load('resources/main/themaze.png')
+Display = pygame.display.set_mode((800, 700))  # taille de l'écran
+pygame.display.set_caption('The Maze')  # caption du programme
+clock = pygame.time.Clock()  # on init la clock
+bgImg = pygame.image.load('resources/main/themaze.png')  # on load les images du jeu
 player = pygame.image.load('resources/main/player.png')
 
+# il faut définir les couleurs dont on aura besoin
 black = (0, 0, 0)
 white = (255, 255, 255)
 red = (255, 0, 0)
@@ -24,9 +25,10 @@ wrlvl1 = [0, 4, 72]
 
 currentlvl = lvl1
 x = PCoords[0]
-y = PCoords[1]
+y = PCoords[1]  # on déclare les variables
 path = []
 
+crashed = False
 error = False
 win = False
 
@@ -34,45 +36,74 @@ start_time = 0
 
 
 def truncate(n):
-    return int(n * 1000) / 1000
+    return int(n * 1000) / 1000  # fonction qui fait la troncature
 
 
-def process_time(time):
+def process_time(time):  # fonction qui prend la valeur du temps en ms et la rend en str de type m:s.ms
+    global error
     ms = time
+    if ms >= 119000:
+        error = True
+        return 'Error'
     sec = ms / 1000
-    minut =  0
-    while (sec/60 > 1 ):
+    minut = 0
+    while sec / 60 > 1:
         minut += 1
-    sec = truncate(sec - (minut * 60))
+        sec = truncate(sec - (minut * 60))
     returned = str(minut) + ':' + str(sec)
     return returned
 
 
 def reset():  # on reset la taille du path, on relance le timer et on remet le personnage de façon normale
+    global error
     path[:] = []  # selectionner tous les objets de la liste et les remplacer par la liste suivante: rien
+    error = False
+
+
+def text_objects(text, font, color):
+    text_surface = font.render(text, False, color)
+    return text_surface, text_surface.get_rect()
+
+
+def disp_text_box(x, y, text, color):
+    thefont = pygame.font.Font('resources/main/segoeui.ttf', 30)
+    text_surf, text_rect = text_objects(text, thefont, color)
+    text_rect.center = (x, y)
+    Display.blit(text_surf, text_rect)
+    pygame.display.update()
+
+
+def crash(text):
+    global x,y,PCoords
+    thefont = pygame.font.Font('resources/main/impact.ttf', 65)
+
+    x = PCoords[0]
+    y = PCoords[1]
+    pygame.time.wait(1)
+    move_player(x,y)
+
+    text_surf, text_rect = text_objects(text, thefont, white)
+    text_rect.center = (400, 350)
+
+    Display.fill(black)
+    Display.blit(text_surf, text_rect)
+
+    pygame.display.update()
+    pygame.time.wait(1500)
 
 
 def check():  # on check si le dernier move du joueur correspond au move demandé par le niveau
-    global error
-    global win
-    global start_time
+    global error, win, start_time, x, y, PCoords
     if len(path) == 0:
+
         return [None]
 
     elif len(path) == 1:
-        start_time = pygame.time.get_ticks()
+        start_time = pygame.time.get_ticks()  # on lance la clock au moment du premier move
 
-    if error:
-        if x == baseCoords[0] and y == baseCoords[1]:
-            error = False
-            reset()
-        print('error')
-        return [None]
-
-    if win:
-        if x == baseCoords[0] and y == baseCoords[1]:
-            win = False
-            reset()
+    if error:  # on renvoie le player au premier
+        crash("BOOM")
+        reset()
         return [None]
 
     i = len(path) - 1
@@ -81,28 +112,16 @@ def check():  # on check si le dernier move du joueur correspond au move demand�
         error = True
     if len(path) == len(currentlvl) and not error:
         win = True
-        print("GG")
+
+    if win:
+        crash("YOU WIN")
+        reset()
     print(path)
-
-
-def text_objects(text, font):
-    text_surface = font.render(text, False, white)
-    return text_surface, text_surface.get_rect()
-
-
-def disp_text_box(x, y, text):
-    thefont = pygame.font.Font('resources/main/segoeui.ttf', 30)
-    text_surf, text_rect = text_objects(text, thefont)
-    text_rect.center = (x, y)
-    Display.blit(text_surf, text_rect)
-    pygame.display.update()
-    pygame.time.wait(1)
-
-    pass
 
 
 def move_player(x, y):
     Display.blit(player, (x, y))
+    # pygame.draw.rect(Display,blue,(x,y,x+25,y+25))
 
 
 def movedown():  # les 4 fonctions de mouvements qui sont quasiment les mêmes.
@@ -127,7 +146,7 @@ def moveup():
     path.append('u')
 
     if y < baseCoords[1]:
-        y = PCoords[1] + 50
+        y = y + 50
         del path[-1]
     if len(path) > 1:
         if path[-2] == 'd':
@@ -168,9 +187,27 @@ def moveright():
     move_player(x, y)
     check()
 
+def game_intro():
+    intro = True
+
+    while intro:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    intro = not intro
+        Display.fill(black)
+        largeText = pygame.font.Font('resources/main/segoeui.ttf',90)
+        TextSurf, TextRect = text_objects("THE MAZE", largeText, white)
+        TextRect.center = (400,350)
+        Display.blit(TextSurf, TextRect)
+        pygame.display.update()
+        clock.tick(15)
 
 def game_loop():
-    global crashed, start_time
+    global crashed, start_time, x, y
     start_time = pygame.time.get_ticks()
     while not crashed:
 
@@ -187,21 +224,25 @@ def game_loop():
                     moveup()
                 elif event.key == pygame.K_DOWN:
                     movedown()
-        if error:
-            disp_text_box(100, 100, 'ptdr')
+                elif event.key == pygame.K_r:
+                    crash('BOOM')
 
         if win:
             pass
         else:
             now_time = pygame.time.get_ticks()
-        disp_text_box(113, 558, process_time((now_time - start_time)))
+        if len(path) == 0 or error:
+            now_time, start_time = 0, 0
+            disp_text_box(113, 558, process_time((now_time - start_time)), white)
+        else:
+            disp_text_box(113, 558, process_time((now_time - start_time)), white)
 
         Display.blit(bgImg, [0, 0])
         move_player(x, y)
 
         pygame.display.update()
         pygame.time.wait(1)
-        clock.tick(60)
+        clock.tick(120)
 
-
+game_intro()
 game_loop()
