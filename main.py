@@ -4,10 +4,10 @@ import serial
 
 arduino_on = False
 
-try: # on vérifie que l'arduino est branchée sur le port 7, todo: une ligne de code qui try tous les ports
-    ser1 = serial.Serial('COM7', 9600)
+try:  # on vérifie que l'arduino est branchée sur le port 7, todo: une ligne de code qui try tous les ports
     arduino_on = True
-except:
+    ser1 = serial.Serial('COM7', 9600)
+except serial.SerialException:
     arduino_on = False
 pygame.init()  # on initialise le pygame
 
@@ -16,7 +16,12 @@ pygame.display.set_caption('The Maze')  # caption du programme
 clock = pygame.time.Clock()  # on init la clock
 bgImg = pygame.image.load('resources/main/themaze.png')  # on load les images du jeu
 player = pygame.image.load('resources/main/player.png')
+level1_player = player
+level2_player = pygame.image.load('resources/main/player2.png')
+level3_player = pygame.image.load('resources/main/player3.png')
+slamthetargets = pygame.mixer.music.load('resources/audio/SlamTheTargets.wav')
 pygame.display.set_icon(player)
+# pygame.mixer.music.play(-1)
 
 # il faut définir les couleurs dont on aura besoin
 black = (0, 0, 0)
@@ -27,7 +32,11 @@ blue = (0, 0, 255)
 grey = (75, 75, 75)
 darkgrey = (25, 25, 25)
 darkblue = (0, 0, 90)
-levelon = 1  # on déclare les variables
+darkgreen = (0, 90, 0)
+darkred = (90, 0, 0)
+
+level_on = 1  # on déclare les variables
+arcade_on = False
 PCoords = [213, 228]  # on définit les coordonnées de base du joueur
 
 lvl1 = ['d', 'd', 'r', 'u', 'u', 'r', 'r', 'r', 'r', 'r', 'd', 'l', 'd', 'l', 'u', 'l', 'd', 'd', 'd', 'd', 'l', 'l',
@@ -60,14 +69,27 @@ def truncate(n):  # fonction qui fait la troncature d'un float
     return int(n * 1000) / 1000
 
 
-def test(dx, dy):
-    Display.scroll(dx, dy)
+def send_info(value=''):  # Envoyer les infos à l'arduino
+    if len(current_lvl) != len(path):  # le début de ce code permet de déterminer quelle est la flèche à envoyer.
+        val = current_lvl[len(path)]
+    else:  # double fonction : permet aussi d'envoyer une valeur spécifique si besoin.
+        return [None]
+    if value == '':
+        value = val
+    else:
+        pass
+    ser1.write(value.encode())  # on write sur le sérial de l'arduino le message de 1 charactère.
+    pygame.time.wait(1)  # on attends 1 pour pas lagger le jeu.
+
+
+def test(dx, dy):  # todo le level qui scroll
+    Display.scroll(dx, dy)  # ne marche pas du tout lol
 
 
 def process_time(time):  # fonction qui prend la valeur du temps en ms et la rend en str de type m:s.ms
     global error, returned, ms
     ms = time
-    if ms >= 119000:
+    if ms >= 119000:  # en fait si ms dépasse ce temps l'arrondissement des valeurs bugge donc c'est la limite
         error = True
         crash('TEMPS ECOULE', ' ', 2000)
         reset()
@@ -78,12 +100,6 @@ def process_time(time):  # fonction qui prend la valeur du temps en ms et la ren
         sec = truncate(sec - (minut * 60))
     returned = str(minut) + ':' + str(sec)
     return returned
-
-
-def reset():  # on reset la taille du path, on relance le timer et on remet le personnage de façon normale
-    global error, win
-    path[:] = []  # selectionner tous les objets de la liste et les remplacer par la liste suivante: rien
-    error, win = False, False
 
 
 def text_objects(text, font, color):  # affiche un message et rend la valeur du message et le rectangle invisible.
@@ -124,12 +140,20 @@ def crash(text, text2, time):  # On affiche un message au mileu de l'écran.
     pygame.time.wait(time)  # on attends un peu pour que le message soit lisible
 
 
+def reset():  # on reset la taille du path et on reset les valeurs.
+    global error, win
+    path[:] = []  # selectionner tous les objets de la liste et les remplacer par la liste suivante: rien
+    error, win = False, False
+
+
 def check():  # on check si le dernier move du joueur correspond au move demandé par le niveau
     global error, win, start_time, x, y, PCoords, returned
-    if arduino_on:
-        send_info()
+
+    send_info() if arduino_on else truncate(200)  # cette ligne permet juste de racourcir le code, truncate ne fait rien
+
     if len(path) == 0:  # on ne check pas si le joueur n'a pas bougé
         return [None]
+
     elif len(path) == 1:
         start_time = pygame.time.get_ticks()  # on lance la clock au moment du premier move
 
@@ -140,7 +164,7 @@ def check():  # on check si le dernier move du joueur correspond au move demand�
         win = True
 
     if error:
-        crash("BOOM", ' ', 250)  # on affiche le texte
+        crash("BOOM", ' ', 250)  # on crashe "boom", vous avez perdu.
         reset()
         if arduino_on:
             send_info('o')
@@ -151,15 +175,14 @@ def check():  # on check si le dernier move du joueur correspond au move demand�
             crash("NOUVEAU RECORD", returned, 4000)
         else:
             crash("Gagné!", returned, 1000)
-
-        won()
         reset()
+        arcade() if arcade_on else won()
+
     # print(path)
 
 
 def move_player(xpos, ypos):
     Display.blit(player, (xpos, ypos))  # on blit le joueur à x et y
-    # pygame.draw.rect(Display,blue,(x,y,x+25,y+25))
 
 
 def move_down():  # les 4 fonctions de mouvements qui sont quasiment les mêmes.
@@ -226,14 +249,15 @@ def move_right():
     check()
 
 
-def button(msg, xx, yy, w, h, oncolor, offcolor, action=None, args=None):
+def button(msg, xx, yy, w, h, oncolor, offcolor, action=None, args=None, border_color=white):
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
-    pygame.draw.rect(Display, white, (xx, yy, w, h))
+    pygame.draw.rect(Display, border_color, (xx, yy, w, h))
 
     # Fonction qui fait un bouton au coordonnées xx et yy de width w et height h, de couleur offcolor sauf si la souris
     # est au dessus du bouton, alors la couleur est oncolor. Si l'utilisateur clique, on effectue la fonction action,
     # et on y associe l'argument args sauf si il n'y a pas d'arguments pour cette fonction.
+    # on dessine aussi des carrés autour du bouton, avec des couleurs spécifiques.
 
     if (xx + w) > mouse[0] > xx and (yy + h) > mouse[1] > yy:
         pygame.draw.rect(Display, oncolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
@@ -250,17 +274,27 @@ def button(msg, xx, yy, w, h, oncolor, offcolor, action=None, args=None):
 
 
 def next_level(boule):  # on prend en argument une booléenne
-    global current_lvl, wr_lvl, levelon
+    global current_lvl, wr_lvl, level_on, player
+    # cette fonction sert à determiner que faire à la fin d'un niveau.
+
     if boule:  # si vrai, on passe au niveau suivant
-        if levelon == 1:
+
+        if level_on == 1:
             current_lvl = lvl2
             wr_lvl = wr_lvl2
-            levelon = 2
-        elif levelon == 2:
+            level_on = 2
+            player = level2_player
+        # on définit alors pour le niveau qui vient, quel est le chemin à suivre, quel est le record de temps, et quelle
+        # icône de joueur on veut.
+
+        elif level_on == 2:
             current_lvl = lvl3
             wr_lvl = wr_lvl3
-            levelon = 3
-        elif levelon == 3:
+            level_on = 3
+            player = level3_player
+
+
+        elif level_on == 3:
             crash("FIN", "Vous avez fini le jeu!"
                          " Merci d'avoir joué!", 10000)
             pygame.quit()
@@ -269,15 +303,34 @@ def next_level(boule):  # on prend en argument une booléenne
     game_loop()
 
 
+def arcade_level(lvl):  # presque pareil mais pour l'arcade (le choix des niveaux)
+    global current_lvl, wr_lvl, player
+
+    if lvl == 1:
+        current_lvl = lvl1
+        wr_lvl = wr_lvl1
+        player = level1_player
+
+    elif lvl == 2:
+        current_lvl = lvl2
+        wr_lvl = wr_lvl2
+        player = level2_player
+
+    elif lvl == 3:
+        current_lvl = lvl3
+        wr_lvl = wr_lvl3
+        player = level3_player
+
+    game_loop()
+
+
 def won():  # Menu de fin de niveau. choix de recommencer ou continuer au niveau suivant.
     global win
-    testt = True
+    send_info('m') if arduino_on else truncate(200)
     while True:
         if arduino_on:
-            if testt:
-                send_info('g')
-            if testt:
-                send_info('0')
+            send_info('g')
+            send_info('0')
         win = not win
         reset()
 
@@ -306,26 +359,42 @@ def won():  # Menu de fin de niveau. choix de recommencer ou continuer au niveau
         pygame.display.update()
 
 
-def send_info(value=''):
-    if len(current_lvl) != len(path):
-        val = current_lvl[len(path)]
-    else:
-        return [None]
-    if value == '':
-        value = val
-    else:
-        pass
-    ser1.write(value.encode())
-    pygame.time.wait(1)
+def arcade():
+    global current_lvl, wr_lvl, arcade_on
+    menu = True
+    arcade_on = True
+    current_lvl = lvl1
+    wr_lvl = wr_lvl1
+    send_info('m') if arduino_on else truncate(200)
+
+    while menu:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        largeText = pygame.font.Font('resources/fonts/arcade.ttf', 90)
+        TextSurf, TextRect = text_objects("ARCADE", largeText, white)
+        TextRect.center = (400, 150)
+
+        Display.fill(darkgrey)
+        Display.blit(TextSurf, TextRect)
+
+        button("Niveau 1", 350, 300, 100, 40, blue, darkblue, arcade_level, 1)
+        button("Niveau 2", 350, 350, 100, 40, red, darkred, arcade_level, 2)
+        button("Niveau 3", 350, 400, 100, 40, green, darkgreen, arcade_level, 3)
+        button("Retour", 600, 600, 100, 60, grey, darkgrey, game_intro)
 
 
 def game_intro():
-    global current_lvl, wr_lvl
-    intro = True
+    global current_lvl, wr_lvl, arcade_on
+    intro = True  # on reset toutes les valeurs qui aurait pû être modifiées (si il rentre dans le menu arcade puis sort)
+    arcade_on = False
     current_lvl = lvl1
     wr_lvl = wr_lvl1
 
     while intro:
+        send_info('m') if arduino_on else truncate(200)  # si on est dans le menu, l'arduino affiche "go!"
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -345,19 +414,23 @@ def game_intro():
         Display.blit(TextSurf, TextRect)
         Display.blit(subSurf, subRect)
 
+        # Ces 15 lignes au dessus servent à afficher les messages écrit sur le menu principal.
+
         button("Normal", 100, 425, 175, 100, grey, darkgrey, game_loop)
 
-        button("Arcade", 500, 425, 175, 100, grey, darkgrey, game_loop)
+        button("Arcade", 500, 425, 175, 100, grey, darkgrey, arcade)
+        # on donne au joueur le choix: soit un mode avec tous les niveaux d'affilée, ou un mode où il peut choisir son
+        # propre niveau.
 
 
 def game_loop():
     global crashed, start_time, x, y, now_time
-    start_time = pygame.time.get_ticks()
+    start_time = pygame.time.get_ticks()  # on lance le timer
+    check()
     while not crashed:
-
         for event in pygame.event.get():  # On obtient les inputs du joueur
             if event.type == pygame.QUIT:
-                pygame.quit()
+                pygame.quit()  # si il appuie sur la croix, le jeu se ferme.
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
@@ -371,25 +444,20 @@ def game_loop():
                 elif event.key == pygame.K_f:
                     test(25, 25)
 
-        if win:
-            won()
-            return [None]
-        else:
-            now_time = pygame.time.get_ticks()
+        now_time = pygame.time.get_ticks()  # on arrête le timer.
 
-        if len(path) == 0 or error:
+        if len(path) == 0 or error:  # on relance à 0 si le joueur se trompe ou décide de faire machine arrière.
             now_time, start_time = 0, 0
             disp_text(113, 558, process_time((now_time - start_time)), white, 30)
         else:
             disp_text(113, 558, process_time((now_time - start_time)), white, 30)
 
-        Display.blit(bgImg, [0, 0])
-        move_player(x, y)
+        Display.blit(bgImg, [0, 0])  # on blit le background.
+        move_player(x, y)  # on bouge le joueur à ses coordonnées.
 
         pygame.display.update()
         pygame.time.wait(1)
         clock.tick(180)
 
 
-game_intro()
-game_loop()
+game_intro()  # on lance le jeu.
