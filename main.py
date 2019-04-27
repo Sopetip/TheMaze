@@ -1,5 +1,6 @@
 # coding: utf-8
 import pygame
+from pygame import mixer as mixer
 import serial
 
 arduino_on = False
@@ -15,48 +16,52 @@ pygame.init()  # on initialise le pygame
 Display = pygame.display.set_mode((800, 700))  # taille de l'écran
 pygame.display.set_caption('The Maze')  # caption du programme
 clock = pygame.time.Clock()  # on init la clock
-specialbg = pygame.image.load('resources/main/specialmaze.png')
-player = pygame.image.load('resources/main/player.png')
-level1_player = player
+level1_player = pygame.image.load('resources/main/player.png')
 level2_player = pygame.image.load('resources/main/player2.png')
 level3_player = pygame.image.load('resources/main/player3.png')
 special_player = pygame.image.load('resources/main/player4.png')
+specialbg = pygame.image.load('resources/main/specialmaze.png')
 bgnv1 = pygame.image.load('resources/main/bgnv1.png')
 bgnv2 = pygame.image.load('resources/main/bgnv2.png')
 bgnv3 = pygame.image.load('resources/main/bgnv3.png')
+mainmenu = pygame.image.load('resources/main/mainmenu.png')
+arcademenu = pygame.image.load('resources/main/arcade.png')
+player = level1_player
 bg = bgnv1
-slamthetargets = pygame.mixer.music.load('resources/audio/SlamTheTargets.wav')
+slamthetargets = mixer.Sound('resources/audio/SlamTheTargets.wav')
 pygame.display.set_icon(player)
-# pygame.mixer.music.play(-1)
+mixer.set_reserved(1)
+mixer.Sound.play(slamthetargets, -1)
 
 # il faut définir les couleurs dont on aura besoin
-black = (0, 0, 0)
-white = (255, 255, 255)
-red = (255, 0, 0)
-green = (0, 255, 0)
-blue = (0, 0, 255)
-pink = (255, 0, 128)
-grey = (75, 75, 75)
-darkgrey = (25, 25, 25)
-darkblue = (0, 0, 90)
-darkgreen = (0, 90, 0)
-darkred = (90, 0, 0)
-darkpink = (90, 0, 45)
+black = [0, 0, 0]
+white = [255, 255, 255]
+red = [255, 0, 0]
+green = [0, 255, 0]
+blue = [0, 0, 255]
+pink = [255, 0, 128]
+grey = [75, 75, 75]
+darkgrey = [25, 25, 25]
+darkblue = [0, 0, 90]
+darkgreen = [0, 90, 0]
+darkred = [90, 0, 0]
+darkpink = [90, 0, 45]
+offgrey = [75, 75, 75, 128]
 
 level_on = 1  # on déclare les variables
 arcade_on = False
 PCoords = [213, 228]  # on définit les coordonnées de base du joueur
 
-lvl1 = ['d', 'd', 'r', 'u', 'u', 'r', 'r', 'r', 'r', 'r', 'd', 'l', 'd', 'l', 'u', 'l', 'd', 'd', 'd', 'd', 'l', 'l',
+lvl3 = ['d', 'd', 'r', 'u', 'u', 'r', 'r', 'r', 'r', 'r', 'd', 'l', 'd', 'l', 'u', 'l', 'd', 'd', 'd', 'd', 'l', 'l',
         'l', 'd', 'd', 'r', 'u', 'r', 'd', 'r', 'u', 'r', 'u', 'r', 'd', 'd', 'l']
-wr_lvl1 = 4720
+wr_lvl3 = 4720  # temps record en millisecondes
 
 lvl2 = ['d', 'r', 'd', 'd', 'r', 'u', 'r', 'd', 'r', 'u', 'u', 'r', 'r', 'd', 'r', 'd', 'd', 'd', 'd', 'd', 'l', 'u',
         'l', 'd', 'l']
 wr_lvl2 = 3217
 
-lvl3 = ['d', 'r', 'r', 'd', 'l', 'd', 'd', 'r', 'd', 'r', 'r', 'u', 'r', 'd', 'd', 'l', 'd']
-wr_lvl3 = 5000
+lvl1 = ['d', 'r', 'r', 'd', 'l', 'd', 'd', 'r', 'd', 'r', 'r', 'u', 'r', 'd', 'd', 'l', 'd']
+wr_lvl1 = 5000
 
 lvl4 = ['d', 'd', 'r', 'r', 'u', 'r', 'd', 'd', 'd', 'r', 'd', 'r', 'd', 'd', 'r', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
         'r', 'r', 'r', 'd', 'r', 'd', 'd', 'r', 'r', 'u', 'r', 'd', 'r', 'r', 'd', 'r', 'd', 'd', 'd', 'r', 'u', 'u',
@@ -80,7 +85,15 @@ special_list = [
     [[5113, -22], [5163, 328]],
     [[5213, -22], [5263, 378]],
     [[5213, 478], [5313, 528]],
-    [[5313, 228], [5363, 328]]
+    [[5313, 228], [5363, 328]],
+    [[6513, 228], [6763, 378]],
+    [[8713, 28], [9213, 228]],
+    [[9213, 228], [9263, 578]],
+    [[7863, 578], [9263, 678]],
+    [[7463, 228], [7613, 428]],
+    [[8313, 478], [8563, 578]],
+    [[6913, 278], [6963, 328]],
+    [[7063, 178], [7163, 428]],
 
 ]
 
@@ -125,7 +138,7 @@ def process_time(time):  # fonction qui prend la valeur du temps en ms et la ren
     ms = time
     if ms >= 119000:  # en fait si ms dépasse ce temps l'arrondissement des valeurs bugge donc c'est la limite
         error = True
-        crash('TEMPS ECOULE', ' ', 100)
+        crash('TEMPS ECOULE', ' ', 20)
         reset()
     sec = ms / 1000
     minut = 0
@@ -141,7 +154,7 @@ def text_objects(text, font, color):  # affiche un message et rend la valeur du 
     return text_surface, text_surface.get_rect()
 
 
-def disp_text(xpos, ypos, text, color=white, fontsize=18,
+def disp_text(xpos, ypos, text, color=(255, 255, 255), fontsize=18,
               font_family='resources/fonts/segoeui.ttf'):  # fonction pour afficher un texte à l'écran
     font1 = pygame.font.Font(font_family, fontsize)  # init la police
     show = font1.render(text, True, color)  # on affiche le texte
@@ -186,6 +199,30 @@ def crash(text, text2, time):  # On affiche un message au mileu de l'écran.
                 on = False
 
 
+def button(msg, xx, yy, w, h, oncolor, offcolor, action=None, args=None, border_color=(255, 255, 255)):
+    mouse = pygame.mouse.get_pos()
+    click = pygame.mouse.get_pressed()
+    pygame.draw.rect(Display, border_color, (xx, yy, w, h))
+
+    # Fonction qui fait un bouton au coordonnées xx et yy de width w et height h, de couleur offcolor sauf si la souris
+    # est au dessus du bouton, alors la couleur est oncolor. Si l'utilisateur clique, on effectue la fonction action,
+    # et on y associe l'argument args sauf si il n'y a pas d'arguments pour cette fonction.
+    # on dessine aussi des carrés autour du bouton, avec des couleurs spécifiques.
+
+    if (xx + w) > mouse[0] > xx and (yy + h) > mouse[1] > yy:
+        pygame.draw.rect(Display, oncolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
+        if click[0] == 1 and action is not None:
+            if args is None:
+                action()
+            else:
+                action(args)
+    else:
+        pygame.draw.rect(Display, offcolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
+
+    disp_text((xx + w / 2), (yy + h / 2), msg, white, 15)  # on affiche ce texte centré dans le bouton.
+    pygame.display.update()
+
+
 def reset():  # on reset la taille du path et on reset les valeurs.
     global error, win
     path[:] = []  # selectionner tous les objets de la liste et les remplacer par la liste suivante: rien
@@ -212,19 +249,17 @@ def check():  # on check si le dernier move du joueur correspond au move demand�
     if error:
         if arduino_on:
             send_info('o')
-        crash("BOOM", ' ', 100)  # on crashe "boom", vous avez perdu.
+        crash("BOOM", ' ', 20)  # on crashe "boom", vous avez perdu.
         reset()
         return [None]
 
     if win:
         if ms <= wr_lvl2:
-            crash("NOUVEAU RECORD", returned, 100)
+            crash("NOUVEAU RECORD", returned, 20)
         else:
-            crash("Gagné!", returned, 100)
+            crash("Gagné!", returned, 20)
         reset()
         arcade() if arcade_on else won()
-
-    # print(path)
 
 
 def move_player(xpos, ypos):
@@ -321,44 +356,24 @@ def special_move_down():
     path.append('d')
 
 
-def special_button(xx, yy, w, h, oncolor, action=None, args=None, ):
+def button_off(xx, yy, w, h, oncolor, action=None, args=None):
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
+    # Fonction similaire au bouton normal, mais celui ci n'a pas de contours...
+
+    surface = pygame.Surface((w, h))
+    surface.set_alpha(128)
+    surface.fill(oncolor)
 
     if (xx + w) > mouse[0] > xx and (yy + h) > mouse[1] > yy:
-        pygame.draw.rect(Display, oncolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
+        Display.blit(surface, (xx, yy))
         if click[0] == 1 and action is not None:
             if args is None:
                 action()
             else:
                 action(args)
 
-    else:
-        pass
-    pygame.display.update()
-
-
-def button(msg, xx, yy, w, h, oncolor, offcolor, action=None, args=None, border_color=white):
-    mouse = pygame.mouse.get_pos()
-    click = pygame.mouse.get_pressed()
-    pygame.draw.rect(Display, border_color, (xx, yy, w, h))
-
-    # Fonction qui fait un bouton au coordonnées xx et yy de width w et height h, de couleur offcolor sauf si la souris
-    # est au dessus du bouton, alors la couleur est oncolor. Si l'utilisateur clique, on effectue la fonction action,
-    # et on y associe l'argument args sauf si il n'y a pas d'arguments pour cette fonction.
-    # on dessine aussi des carrés autour du bouton, avec des couleurs spécifiques.
-
-    if (xx + w) > mouse[0] > xx and (yy + h) > mouse[1] > yy:
-        pygame.draw.rect(Display, oncolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
-        if click[0] == 1 and action is not None:
-            if args is None:
-                action()
-            else:
-                action(args)
-    else:
-        pygame.draw.rect(Display, offcolor, (xx + 2, yy + 2, (w - 4), (h - 4)))
-
-    disp_text((xx + w / 2), (yy + h / 2), msg, white, 15)  # on affiche ce texte centré dans le bouton.
+    pygame.time.wait(1)
     pygame.display.update()
 
 
@@ -374,8 +389,8 @@ def next_level(boule):  # on prend en argument une booléenne
             bg = bgnv2
             level_on = 2
             player = level2_player
-        # on définit alors pour le niveau qui vient, quel est le chemin à suivre, quel est le record de temps, et quelle
-        # icône de joueur on veut.
+        # on définit alors pour le niveau qui vient, quel est le chemin à suivre, quel est le record de temps, quel
+        # le skin du joueur et le background.
 
         elif level_on == 2:
             current_lvl = lvl3
@@ -396,12 +411,12 @@ def next_level(boule):  # on prend en argument une booléenne
         special_game_loop()
     else:
         crash("FIN", "Vous avez fini le jeu!"
-                     " Merci d'avoir joué!", 100)
+                     " Merci d'avoir joué!", 20)
         pygame.quit()
         quit()
 
 
-def arcade_level(lvl):  # presque pareil mais pour l'arcade (le choix des niveaux)
+def arcade_level(lvl):  # presque pareil que next_level() mais pour l'arcade (le choix des niveaux)
     global current_lvl, wr_lvl, player, level_on, bg
 
     if lvl == 1:
@@ -451,8 +466,6 @@ def won():  # Menu de fin de niveau. choix de recommencer ou continuer au niveau
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            # if event.type == pygame.KEYDOWN:
-            # if event.key == pygame.K_f:
 
         largeText = pygame.font.Font('resources/fonts/impact.ttf', 90)
         TextSurf, TextRect = text_objects("Gagné!", largeText, white)
@@ -485,17 +498,13 @@ def arcade():
                 pygame.quit()
                 quit()
 
-        largeText = pygame.font.Font('resources/fonts/arcade.ttf', 90)
-        TextSurf, TextRect = text_objects("ARCADE", largeText, white)
-        TextRect.center = (400, 150)
-
         Display.fill(black)
-        Display.blit(TextSurf, TextRect)
+        Display.blit(arcademenu, (0, 0))
 
-        button("Niveau 1", 350, 300, 100, 40, blue, darkblue, arcade_level, 1)
-        button("Niveau 2", 350, 350, 100, 40, red, darkred, arcade_level, 2)
-        button("Niveau 3", 350, 400, 100, 40, green, darkgreen, arcade_level, 3)
-        button("Niveau 4", 350, 450, 100, 40, pink, darkpink, arcade_level, 4)
+        button_off(353, 256, 95, 32, darkblue, arcade_level, 1)
+        button_off(353, 306, 95, 32, darkred, arcade_level, 2)
+        button_off(353, 356, 95, 32, darkgreen, arcade_level, 3)
+        button_off(353, 406, 95, 32, darkpink, arcade_level, 4)
         button("Retour", 600, 600, 100, 60, grey, darkgrey, game_intro)
 
 
@@ -517,24 +526,12 @@ def game_intro():
                 pygame.quit()
                 quit()
 
-        largeText = pygame.font.Font('resources/fonts/arcade.ttf', 90)
-        TextSurf, TextRect = text_objects("THE MAZE", largeText, white)
-        TextRect.center = (400, 150)
-
-        smoltext = pygame.font.Font('resources/fonts/segoeui.ttf', 18)
-        subSurf, subRect = text_objects("Projet d'ISN de Hélie Lévy, Keenan Jacq et Théo de Angelis", smoltext,
-                                        white)
-        subRect.center = (400, 300)
-
         Display.fill(black)
-        Display.blit(TextSurf, TextRect)
-        Display.blit(subSurf, subRect)
+        Display.blit(mainmenu, (0, 0))
 
-        # Ces 15 lignes au dessus servent à afficher les messages écrit sur le menu principal.
+        button_off(107, 218, 171, 96, grey, game_loop)
 
-        button("Normal", 100, 425, 175, 100, grey, darkgrey, game_loop)
-
-        button("Arcade", 500, 425, 175, 100, grey, darkgrey, arcade)
+        button_off(107, 377, 171, 96, grey, arcade)
         # on donne au joueur le choix: soit un mode avec tous les niveaux d'affilée, ou un mode où il peut choisir son
         # propre niveau.
 
@@ -606,7 +603,7 @@ def special_check():  # on check si le dernier move du joueur correspond au move
         return [None]
 
     if error:
-        crash("BOOM", ' ', 250)  # on crashe "boom", vous avez perdu.
+        crash("BOOM", ' ', 20)  # on crashe "boom", vous avez perdu.
         special_reset()
         if arduino_on:
             send_info('o')
@@ -614,9 +611,9 @@ def special_check():  # on check si le dernier move du joueur correspond au move
 
     if win:
         if ms <= wr_lvl2:
-            crash("NOUVEAU RECORD", returned, 100)
+            crash("NOUVEAU RECORD", returned, 20)
         else:
-            crash("Gagné!", returned, 100)
+            crash("Gagné!", returned, 20)
         special_reset()
 
         arcade() if arcade_on else won()
@@ -686,6 +683,8 @@ def special_game_loop():
                     special_move_down()
                 elif event.key == pygame.K_f:
                     my_scroll(100, 0)
+                elif event.key == pygame.K_r:
+                    my_scroll(-100, 0)
 
         my_scroll(1, 1)
         special_move_player(x, y)
@@ -730,11 +729,10 @@ def game_loop():
         else:
             disp_text(113, 558, process_time((now_time - start_time)), white, 30)
 
-        special_button(660, 600, 100, 60, grey, game_intro)
+        button_off(662, 602, 96, 56, grey, game_intro)
 
         move_player(x, y)  # on bouge le joueur à ses coordonnées.
 
-        # pygame.display.update()
         pygame.time.wait(1)
         clock.tick(180)
 
